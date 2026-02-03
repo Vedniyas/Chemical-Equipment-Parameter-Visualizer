@@ -1,0 +1,18 @@
+# --- Python & Django ---
+__pycache__/
+*.py[cod]
+venv/
+env/
+.env
+db.sqlite3
+media/uploads/
+
+# --- React & Node ---
+frontend_web/node_modules/
+frontend_web/dist/
+frontend_web/.DS_Store
+.DS_Store
+
+# --- IDEs & System ---
+.vscode/
+.idea/
