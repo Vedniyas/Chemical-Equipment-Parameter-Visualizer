@@ -355,3 +355,97 @@ td {
     padding: 10px;
   }
 }
+
+/* --- Navbar & Layout --- */
+.navbar {
+  position: fixed;
+  top: 0; left: 0; width: 100%;
+  height: 70px;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 40px;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.navbar.scrolled {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  height: 60px;
+}
+
+.nav-brand {
+  font-weight: 800; font-size: 1.5rem;
+  background: linear-gradient(to right, #4f46e5, #ec4899);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+.nav-links { display: flex; gap: 20px; }
+
+.nav-btn {
+  text-decoration: none;
+  color: white; /* Default white on dark gradient bg */
+  padding: 8px 16px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.navbar.scrolled .nav-btn { color: #1e293b; } /* Dark text on white navbar */
+
+.active-link {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+}
+
+.navbar.scrolled .active-link {
+  background: var(--primary);
+  color: white !important;
+}
+
+.main-wrapper {
+  padding-top: 90px;
+  min-height: 100vh;
+  display: flex; justify-content: center;
+}
+
+/* --- Settings Components --- */
+.settings-panel { display: flex; flex-direction: column; gap: 20px; }
+
+.setting-item {
+  display: flex; justify-content: space-between; align-items: center;
+  background: white; padding: 20px;
+  border-radius: 12px; border: 1px solid #e2e8f0;
+}
+
+.setting-info h3 { margin: 0 0 5px 0; font-size: 1rem; }
+.setting-info p { margin: 0; color: #64748b; font-size: 0.9rem; }
+
+.zoom-slider { width: 150px; cursor: pointer; accent-color: var(--primary); }
+
+.save-btn { margin-top: 10px; width: fit-content; }
+
+/* Switch Toggle */
+.switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: var(--primary); }
+input:checked + .slider:before { transform: translateX(24px); }
+
+/* --- Dark Mode Variables --- */
+body.dark-mode {
+  --glass-bg: rgba(15, 23, 42, 0.9);
+  --text-main: #f8fafc;
+  --bg-gradient: linear-gradient(135deg, #000000 0%, #1e1b4b 100%);
+}
+
+body.dark-mode .navbar.scrolled { background: rgba(15, 23, 42, 0.95); }
+body.dark-mode .navbar.scrolled .nav-btn { color: white; }
+body.dark-mode .setting-item, 
+body.dark-mode .stat-box, 
+body.dark-mode .chart-container {
+  background: #1e293b; border-color: #334155; color: white;
+}
+body.dark-mode p, body.dark-mode h3 { color: #cbd5e1; }
