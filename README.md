@@ -41,6 +41,3 @@ pip install pandas numpy django-cors-headers
 # Run Migrations & Start Server
 python manage.py migrate
 python manage.py runserver
-
-
-
