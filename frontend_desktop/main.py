@@ -3,398 +3,335 @@ import requests
 import os
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QFileDialog, 
                              QMessageBox, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QFrame, QScrollArea, QSizePolicy,
-                             QGraphicsOpacityEffect, QProgressBar)
-from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer
-from PyQt5.QtGui import QFont, QColor, QPalette, QIcon
+                             QHeaderView, QFrame, QScrollArea, QTabWidget, 
+                             QCheckBox, QGridLayout, QSplitter)
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QFont, QIcon, QColor
 
 # --- Configuration ---
-API_URL = "http://127.0.0.1:8000/api/upload/"
+# Pointing to Localhost Backend
+API_BASE = "http://127.0.0.1:8000/api/"
 
-# --- Styling (QSS) ---
-STYLESHEET = """
-QMainWindow {
-    background-color: #f8fafc;
-}
-
-/* --- SCROLL AREA FIX --- */
-QScrollArea {
-    border: none;
-    background-color: #f8fafc;
-}
-/* IMPORTANT: This must be solid, not transparent, to fix the scroll glitch */
-QWidget#ScrollContent {
-    background-color: #f8fafc; 
-}
-
-/* --- Loading Overlay --- */
-QFrame#LoadingOverlay {
-    background-color: #f8fafc;
-    border: none;
-}
-QLabel#LoadingText {
-    color: #4f46e5;
-    font-size: 18px;
-    font-weight: bold;
-}
-QProgressBar {
-    border: none;
-    background-color: #e2e8f0;
-    border-radius: 4px;
-    height: 6px;
-    text-align: center;
-}
-QProgressBar::chunk {
-    background-color: #4f46e5;
-    border-radius: 4px;
-}
-
-/* --- Header --- */
-QLabel#HeaderTitle {
-    font-size: 28px;
-    font-weight: 800;
-    color: #1e293b;
-    font-family: 'Segoe UI', sans-serif;
-    background-color: transparent;
-}
-QLabel#HeaderSubtitle {
-    font-size: 14px;
-    color: #64748b;
-    font-family: 'Segoe UI', sans-serif;
-    background-color: transparent;
-}
-
-/* --- Cards --- */
-QFrame#Card {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-}
-
-/* --- Buttons --- */
-QPushButton {
-    background-color: #4f46e5;
-    color: white;
-    font-size: 15px;
-    font-weight: bold;
-    padding: 15px 30px;
-    border-radius: 10px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #4338ca;
-}
-QPushButton:pressed {
-    background-color: #3730a3;
-    padding-top: 17px;
-}
-
-/* --- Stats --- */
-QFrame#StatBox {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-}
-QLabel#StatTitle { 
-    color: #64748b; 
-    font-size: 11px; 
-    font-weight: bold; 
-    text-transform: uppercase;
-    background-color: transparent;
-}
-QLabel#StatValue { 
-    color: #4f46e5; 
-    font-size: 32px; 
-    font-weight: 800; 
-    background-color: transparent;
-}
-
-/* --- Table --- */
-QTableWidget {
-    background-color: white;
-    gridline-color: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    font-size: 13px;
-    color: #334155;
-    padding: 10px;
-}
-QHeaderView::section {
-    background-color: white;
-    color: #64748b;
-    padding: 12px;
-    border: none;
-    border-bottom: 2px solid #e2e8f0;
-    font-weight: bold;
-    text-transform: uppercase;
-    font-size: 11px;
-}
+# --- Styling (Light & Dark Themes) ---
+THEME_LIGHT = """
+QMainWindow { background-color: #f8fafc; }
+QTabWidget::pane { border: none; background: #f8fafc; }
+QTabBar::tab { background: transparent; color: #64748b; padding: 10px 20px; font-weight: bold; font-size: 14px; }
+QTabBar::tab:selected { color: #4f46e5; border-bottom: 2px solid #4f46e5; }
+QFrame#Card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }
+QLabel { color: #1e293b; }
+QLabel#StatTitle { color: #64748b; font-weight: bold; font-size: 11px; text-transform: uppercase; }
+QLabel#StatValue { color: #4f46e5; font-weight: 800; font-size: 28px; }
+QLabel#SubStat { color: #64748b; font-size: 10px; }
+QPushButton { background-color: #4f46e5; color: white; border-radius: 8px; padding: 10px; font-weight: bold; }
+QPushButton:hover { background-color: #4338ca; }
+QTableWidget { background-color: white; border: 1px solid #e2e8f0; gridline-color: #f1f5f9; color: #334155; }
+QHeaderView::section { background-color: #f1f5f9; color: #64748b; border: none; padding: 8px; font-weight: bold; }
 """
 
-class StatCard(QFrame):
-    def __init__(self, title, value):
+THEME_DARK = """
+QMainWindow { background-color: #0f172a; }
+QTabWidget::pane { border: none; background: #0f172a; }
+QTabBar::tab { color: #94a3b8; }
+QTabBar::tab:selected { color: #818cf8; border-bottom: 2px solid #818cf8; }
+QFrame#Card { background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+QLabel { color: #f8fafc; }
+QLabel#StatTitle { color: #94a3b8; }
+QLabel#StatValue { color: #818cf8; }
+QLabel#SubStat { color: #94a3b8; }
+QPushButton { background-color: #4f46e5; color: white; }
+QTableWidget { background-color: #1e293b; border: 1px solid #334155; color: #e2e8f0; gridline-color: #334155; }
+QHeaderView::section { background-color: #0f172a; color: #94a3b8; border: none; }
+"""
+
+# --- Custom Components ---
+class ProfessionalStatCard(QFrame):
+    def __init__(self, title, unit, stats):
         super().__init__()
-        self.setObjectName("StatBox")
-        self.setFixedHeight(120)
-        # Force background paint
-        self.setAutoFillBackground(True)
-        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setObjectName("Card")
+        self.setFixedHeight(140)
         
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignCenter)
         
-        t_label = QLabel(title)
+        # Header
+        top_layout = QHBoxLayout()
+        t_label = QLabel(f"{title} ({unit})")
         t_label.setObjectName("StatTitle")
-        t_label.setAlignment(Qt.AlignCenter)
+        top_layout.addWidget(t_label)
+        layout.addLayout(top_layout)
         
-        v_label = QLabel(str(value))
+        # Main Value
+        v_label = QLabel(str(stats['avg']))
         v_label.setObjectName("StatValue")
         v_label.setAlignment(Qt.AlignCenter)
-        
-        layout.addWidget(t_label)
         layout.addWidget(v_label)
+        
+        # Footer (Min/Max/Median)
+        bot_layout = QHBoxLayout()
+        for label, val in [("Min", stats['min']), ("Max", stats['max']), ("Med", stats['median'])]:
+            sub = QLabel(f"{label}: {val}")
+            sub.setObjectName("SubStat")
+            bot_layout.addWidget(sub)
+        layout.addLayout(bot_layout)
 
 class ChemicalApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Chemical Equipment Visualizer")
-        self.resize(1200, 900)
-        self.setStyleSheet(STYLESHEET)
+        self.setWindowTitle("Chemical Visualizer Pro")
+        self.resize(1200, 850)
+        self.dark_mode = False
+        self.apply_theme()
 
-        # 1. Main Scroll Area
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # Disable horizontal scroll
-        self.setCentralWidget(self.scroll_area)
+        # Main Tab Widget
+        self.tabs = QTabWidget()
+        self.setCentralWidget(self.tabs)
 
-        # 2. Scroll Content Widget (THE FIX: Solid Background)
-        self.scroll_content = QWidget()
-        self.scroll_content.setObjectName("ScrollContent")
-        self.scroll_content.setAutoFillBackground(True) # Force paint
-        self.scroll_area.setWidget(self.scroll_content)
+        # Create Tabs
+        self.dashboard_tab = QWidget()
+        self.history_tab = QWidget()
+        self.settings_tab = QWidget()
 
-        # 3. Root Layout
-        self.root_layout = QVBoxLayout(self.scroll_content)
-        self.root_layout.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-        self.root_layout.setContentsMargins(0, 40, 0, 40)
+        self.tabs.addTab(self.dashboard_tab, "Dashboard")
+        self.tabs.addTab(self.history_tab, "History")
+        self.tabs.addTab(self.settings_tab, "Settings")
 
-        # 4. Main Container
-        self.container = QWidget()
-        self.container.setObjectName("MainContainer")
-        self.container.setFixedWidth(1000)
-        self.root_layout.addWidget(self.container)
-
-        self.layout = QVBoxLayout(self.container)
-        self.layout.setSpacing(25)
-
-        # --- UI ELEMENTS ---
-        self.init_header()
-        self.init_upload_hero()
+        # Initialize UI
+        self.init_dashboard()
+        self.init_history()
+        self.init_settings()
         
-        self.stats_container = QWidget()
-        self.stats_layout = QHBoxLayout(self.stats_container)
-        self.stats_layout.setSpacing(20)
-        self.layout.addWidget(self.stats_container)
-        self.stats_container.hide()
+        # Connect tab change to refresh history
+        self.tabs.currentChanged.connect(self.on_tab_change)
 
-        self.chart_frame = QFrame()
-        self.chart_frame.setObjectName("Card")
-        self.chart_frame.setFixedHeight(450)
-        self.chart_layout = QVBoxLayout(self.chart_frame)
-        self.chart_layout.setContentsMargins(20, 20, 20, 20)
+    def apply_theme(self):
+        self.setStyleSheet(THEME_DARK if self.dark_mode else THEME_LIGHT)
+
+    # --- TAB 1: DASHBOARD ---
+    def init_dashboard(self):
+        layout = QVBoxLayout(self.dashboard_tab)
         
-        self.figure, self.ax = plt.subplots(1, 2, figsize=(10, 4))
-        self.figure.patch.set_facecolor('white')
-        self.canvas = FigureCanvas(self.figure)
-        self.chart_layout.addWidget(self.canvas)
-        self.layout.addWidget(self.chart_frame)
-        self.chart_frame.hide()
-
-        self.table_label = QLabel("Raw Data Preview")
-        self.table_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #334155; margin-top: 10px; background-color: transparent;")
-        self.layout.addWidget(self.table_label)
-        self.table_label.hide()
-
-        self.table = QTableWidget()
-        self.table.setMinimumHeight(600)
-        self.table.setAlternatingRowColors(True)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setShowGrid(False)
-        self.layout.addWidget(self.table)
-        self.table.hide()
-
-        # --- LOADING OVERLAY (Added Feature) ---
-        self.init_loading_overlay()
-
-        # Simulate "Boot Up" (Manages painting time)
-        QTimer.singleShot(500, self.finish_loading)
-
-    def init_loading_overlay(self):
-        """Creates a white screen that covers everything while the app paints."""
-        self.loading_overlay = QFrame(self)
-        self.loading_overlay.setObjectName("LoadingOverlay")
-        self.loading_overlay.resize(1200, 900) # Full size
+        # Scroll Area for Dashboard
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        content = QWidget()
+        self.dash_layout = QVBoxLayout(content)
         
-        l = QVBoxLayout(self.loading_overlay)
-        l.setAlignment(Qt.AlignCenter)
-        
-        # Text
-        self.loading_text = QLabel("Initializing Dashboard...")
-        self.loading_text.setObjectName("LoadingText")
-        self.loading_text.setAlignment(Qt.AlignCenter)
-        
-        # Bar
-        self.progress = QProgressBar()
-        self.progress.setFixedWidth(200)
-        self.progress.setRange(0, 0) # Infinite loading animation
-        
-        l.addWidget(self.loading_text)
-        l.addSpacing(15)
-        l.addWidget(self.progress)
-        
-        self.loading_overlay.show()
-
-    def finish_loading(self):
-        """Fade out the loading screen once app is ready."""
-        # 1. Force a repaint of the main window behind the scene
-        self.scroll_content.repaint()
-        
-        # 2. Fade out animation
-        self.anim = QPropertyAnimation(self.loading_overlay, b"windowOpacity")
-        self.anim.setDuration(500)
-        self.anim.setStartValue(1.0)
-        self.anim.setEndValue(0.0)
-        self.anim.finished.connect(self.loading_overlay.hide)
-        self.anim.start()
-
-    # --- Standard App Logic ---
-    def init_header(self):
-        header_widget = QWidget()
-        l = QVBoxLayout(header_widget)
-        l.setAlignment(Qt.AlignCenter)
-        title = QLabel("Chemical Analytics Dashboard")
-        title.setObjectName("HeaderTitle")
-        title.setAlignment(Qt.AlignCenter)
-        subtitle = QLabel("Upload your CSV dataset to generate insights and visualizations")
-        subtitle.setObjectName("HeaderSubtitle")
-        subtitle.setAlignment(Qt.AlignCenter)
-        l.addWidget(title)
-        l.addWidget(subtitle)
-        self.layout.addWidget(header_widget)
-
-    def init_upload_hero(self):
+        # 1. Upload Section
         self.upload_frame = QFrame()
         self.upload_frame.setObjectName("Card")
-        l = QVBoxLayout(self.upload_frame)
-        l.setAlignment(Qt.AlignCenter)
-        l.setContentsMargins(40, 40, 40, 40)
-        l.setSpacing(20)
-        icon_label = QLabel("📂")
-        icon_label.setStyleSheet("font-size: 48px; background-color: transparent;")
-        icon_label.setAlignment(Qt.AlignCenter)
+        ul = QHBoxLayout(self.upload_frame)
         self.upload_btn = QPushButton("Import CSV Dataset")
-        self.upload_btn.setCursor(Qt.PointingHandCursor)
-        self.upload_btn.setFixedWidth(250)
         self.upload_btn.clicked.connect(self.upload_file)
-        l.addWidget(icon_label)
-        l.addWidget(self.upload_btn)
-        self.layout.addWidget(self.upload_frame)
+        self.upload_label = QLabel("No file loaded")
+        ul.addWidget(self.upload_btn)
+        ul.addWidget(self.upload_label)
+        ul.addStretch()
+        self.dash_layout.addWidget(self.upload_frame)
+
+        # 2. Stats Row
+        self.stats_container = QWidget()
+        self.stats_layout = QHBoxLayout(self.stats_container)
+        self.dash_layout.addWidget(self.stats_container)
+
+        # 3. Charts Area (Grid)
+        self.chart_container = QWidget()
+        self.chart_grid = QGridLayout(self.chart_container)
+        
+        # We use Matplotlib Figures
+        self.fig_line = Figure(figsize=(5, 4), facecolor='none')
+        self.canvas_line = FigureCanvas(self.fig_line)
+        self.fig_scatter = Figure(figsize=(5, 4), facecolor='none')
+        self.canvas_scatter = FigureCanvas(self.fig_scatter)
+        self.fig_pie = Figure(figsize=(5, 4), facecolor='none')
+        self.canvas_pie = FigureCanvas(self.fig_pie)
+
+        # Add to grid (Frame them for styling)
+        for i, (canvas, title) in enumerate([
+            (self.canvas_line, "Time Series Analysis"), 
+            (self.canvas_scatter, "Correlation"), 
+            (self.canvas_pie, "Equipment Distribution")
+        ]):
+            frame = QFrame()
+            frame.setObjectName("Card")
+            fl = QVBoxLayout(frame)
+            lbl = QLabel(title)
+            lbl.setStyleSheet("font-weight: bold; margin-bottom: 5px;")
+            fl.addWidget(lbl)
+            fl.addWidget(canvas)
+            # Row 0 for first two, Row 1 for Pie
+            r, c = (0, i) if i < 2 else (1, 0)
+            self.chart_grid.addWidget(frame, r, c)
+
+        self.dash_layout.addWidget(self.chart_container)
+        self.chart_container.hide()
+
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
 
     def upload_file(self):
         fname, _ = QFileDialog.getOpenFileName(self, 'Open CSV', '.', "CSV Files (*.csv)")
         if fname:
-            self.upload_btn.setText("Processing...")
-            self.upload_btn.setEnabled(False)
+            self.upload_label.setText(f"Processing {os.path.basename(fname)}...")
             QApplication.processEvents()
             try:
                 files = {'file': open(fname, 'rb')}
-                response = requests.post(API_URL, files=files)
+                # Call the new Upload Endpoint
+                response = requests.post(API_BASE + "upload/", files=files)
                 if response.status_code == 200:
                     data = response.json()['data']
-                    self.render_dashboard(data)
-                    self.upload_btn.setText("Import New Dataset")
+                    self.render_data(data)
+                    self.upload_label.setText("Analysis Complete")
                 else:
-                    QMessageBox.critical(self, "Error", response.text)
-                    self.upload_btn.setText("Import CSV Dataset")
+                    QMessageBox.critical(self, "Error", "Upload failed. Check Backend.")
             except Exception as e:
-                QMessageBox.critical(self, "Connection Error", str(e))
-                self.upload_btn.setText("Import CSV Dataset")
-            self.upload_btn.setEnabled(True)
+                QMessageBox.critical(self, "Connection Error", f"Is backend running?\n{e}")
 
-    def render_dashboard(self, data):
-        # Stats
+    def render_data(self, data):
+        # 1. Update Stats
+        # Clear old
         for i in reversed(range(self.stats_layout.count())): 
             self.stats_layout.itemAt(i).widget().setParent(None)
-        stats = [
-            ("Total Units", data['total_count']),
-            ("Avg Flowrate", data['averages']['avg_flowrate']),
-            ("Avg Pressure", data['averages']['avg_pressure']),
-            ("Avg Temperature", data['averages']['avg_temperature'])
-        ]
-        for title, value in stats:
-            card = StatCard(title, value)
-            self.stats_layout.addWidget(card)
-
-        # Charts
-        self.ax[0].clear()
-        self.ax[1].clear()
         
-        dist = data['distribution']
-        wedges, _, _ = self.ax[0].pie(
-            dist.values(), autopct='%1.1f%%', 
-            colors=['#6366f1', '#ec4899', '#eab308', '#22c55e', '#3b82f6'],
-            startangle=90, textprops={'fontsize': 8, 'color': 'white'}
-        )
-        self.ax[0].legend(wedges, dist.keys(), loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), frameon=False)
-        self.ax[0].set_title("Equipment Types", fontsize=10, fontweight='bold')
+        # Add new Professional Cards
+        stats = data.get('stats', {})
+        if 'Flowrate' in stats:
+            self.stats_layout.addWidget(ProfessionalStatCard("Flowrate", "L/min", stats['Flowrate']))
+        if 'Pressure' in stats:
+            self.stats_layout.addWidget(ProfessionalStatCard("Pressure", "PSI", stats['Pressure']))
+        if 'Temperature' in stats:
+            self.stats_layout.addWidget(ProfessionalStatCard("Temp", "°C", stats['Temperature']))
 
-        metrics = ['Flowrate', 'Pressure', 'Temp']
-        values = [data['averages']['avg_flowrate'], data['averages']['avg_pressure'], data['averages']['avg_temperature']]
-        self.ax[1].bar(metrics, values, color=['#6366f1', '#ec4899', '#eab308'], width=0.5)
-        self.ax[1].set_title("Average Metrics", fontsize=10, fontweight='bold')
-        self.ax[1].grid(axis='y', linestyle='--', alpha=0.3)
-        self.ax[1].spines['top'].set_visible(False)
-        self.ax[1].spines['right'].set_visible(False)
+        # 2. Update Charts
+        # Line Chart
+        self.fig_line.clear()
+        ax1 = self.fig_line.add_subplot(111)
+        chart_data = data.get('chart_data', [])
+        if chart_data:
+            idx = range(len(chart_data))
+            pressures = [d.get('Pressure', 0) for d in chart_data]
+            temps = [d.get('Temperature', 0) for d in chart_data]
+            ax1.plot(idx, pressures, label='Pressure', color='#f43f5e')
+            ax1.plot(idx, temps, label='Temp', color='#3b82f6')
+            ax1.legend()
+            ax1.set_title("Process Stability")
+        self.canvas_line.draw()
+
+        # Scatter Chart
+        self.fig_scatter.clear()
+        ax2 = self.fig_scatter.add_subplot(111)
+        if chart_data:
+            p = [d.get('Pressure', 0) for d in chart_data]
+            f = [d.get('Flowrate', 0) for d in chart_data]
+            ax2.scatter(p, f, alpha=0.5, color='#6366f1')
+            ax2.set_xlabel("Pressure")
+            ax2.set_ylabel("Flowrate")
+            ax2.set_title("P vs F Correlation")
+        self.canvas_scatter.draw()
+
+        # Pie Chart
+        self.fig_pie.clear()
+        ax3 = self.fig_pie.add_subplot(111)
+        dist = data.get('distribution', {})
+        if dist:
+            ax3.pie(dist.values(), labels=dist.keys(), autopct='%1.1f%%', startangle=90)
+        self.canvas_pie.draw()
+
+        self.chart_container.show()
+
+    # --- TAB 2: HISTORY ---
+    def init_history(self):
+        layout = QVBoxLayout(self.history_tab)
         
-        self.figure.subplots_adjust(wspace=1, left=0.05, right=0.95, top=0.9, bottom=0.1)
-        self.canvas.draw()
+        header = QHBoxLayout()
+        btn_refresh = QPushButton("Refresh List")
+        btn_refresh.setFixedWidth(120)
+        btn_refresh.clicked.connect(self.load_history)
+        header.addWidget(QLabel("Past Analysis Records"))
+        header.addStretch()
+        header.addWidget(btn_refresh)
+        layout.addLayout(header)
 
-        # Table
-        rows = data['preview']
-        if rows:
-            columns = list(rows[0].keys())
-            self.table.setColumnCount(len(columns))
-            self.table.setRowCount(len(rows))
-            self.table.setHorizontalHeaderLabels([c.upper() for c in columns])
-            header = self.table.horizontalHeader()
-            for i in range(len(columns)):
-                header.setSectionResizeMode(i, QHeaderView.Stretch)
-            for i, row in enumerate(rows):
-                for j, col in enumerate(columns):
-                    item = QTableWidgetItem(str(row[col]))
-                    item.setTextAlignment(Qt.AlignCenter)
-                    self.table.setItem(i, j, item)
+        self.hist_table = QTableWidget()
+        self.hist_table.setColumnCount(4)
+        self.hist_table.setHorizontalHeaderLabels(["Date", "File Name", "Avg Pressure", "Avg Temp"])
+        self.hist_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        layout.addWidget(self.hist_table)
 
-        self.stats_container.show()
-        self.chart_frame.show()
-        self.table_label.show()
-        self.table.show()
+    def load_history(self):
+        try:
+            res = requests.get(API_BASE + "history/")
+            if res.status_code == 200:
+                records = res.json()
+                self.hist_table.setRowCount(len(records))
+                for i, r in enumerate(records):
+                    # Parse date slightly for readability
+                    date_str = r['upload_date'].split('T')[0]
+                    self.hist_table.setItem(i, 0, QTableWidgetItem(date_str))
+                    self.hist_table.setItem(i, 1, QTableWidgetItem(r['file_name']))
+                    self.hist_table.setItem(i, 2, QTableWidgetItem(str(r['avg_pressure'])))
+                    self.hist_table.setItem(i, 3, QTableWidgetItem(str(r['avg_temperature'])))
+        except:
+            print("Could not fetch history")
 
-    def resizeEvent(self, event):
-        """Keep loading overlay full size when resizing"""
-        if hasattr(self, 'loading_overlay') and self.loading_overlay.isVisible():
-            self.loading_overlay.resize(self.width(), self.height())
-        super().resizeEvent(event)
+    def on_tab_change(self, index):
+        if index == 1: # History Tab
+            self.load_history()
+
+    # --- TAB 3: SETTINGS ---
+    def init_settings(self):
+        layout = QVBoxLayout(self.settings_tab)
+        layout.setAlignment(Qt.AlignTop)
+        
+        container = QFrame()
+        container.setObjectName("Card")
+        l = QVBoxLayout(container)
+        
+        l.addWidget(QLabel("Appearance"))
+        
+        self.cb_dark = QCheckBox("Enable Dark Mode")
+        self.cb_dark.setStyleSheet("font-size: 16px; padding: 10px;")
+        self.cb_dark.stateChanged.connect(self.toggle_dark_mode)
+        l.addWidget(self.cb_dark)
+        
+        layout.addWidget(container)
+
+    def toggle_dark_mode(self, state):
+        self.dark_mode = (state == Qt.Checked)
+        self.apply_theme()
+        
+        # Matplotlib figures need recoloring
+        face = '#1e293b' if self.dark_mode else 'none'
+        text = 'white' if self.dark_mode else 'black'
+        
+        for fig in [self.fig_line, self.fig_scatter, self.fig_pie]:
+            fig.patch.set_facecolor('none') # Keep transparent to match card
+            for ax in fig.axes:
+                ax.tick_params(colors=text)
+                ax.xaxis.label.set_color(text)
+                ax.yaxis.label.set_color(text)
+                ax.title.set_color(text)
+                for spine in ax.spines.values():
+                    spine.set_edgecolor(text)
+        
+        self.canvas_line.draw()
+        self.canvas_scatter.draw()
+        self.canvas_pie.draw()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setFont(QFont("Segoe UI", 10))
+    
+    # Try to load icon
     basedir = os.path.dirname(__file__)
     icon_path = os.path.join(basedir, 'assets', 'icon.jpeg')
-    app.setWindowIcon(QIcon(icon_path))
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
+        
     window = ChemicalApp()
     window.show()
     sys.exit(app.exec_())
